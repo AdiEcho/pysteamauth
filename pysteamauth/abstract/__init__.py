@@ -3,6 +3,6 @@ from .storage import CookieStorageAbstract
 
 
 __all__ = [
-    'RequestStrategyAbstract',
-    'CookieStorageAbstract',
+    "RequestStrategyAbstract",
+    "CookieStorageAbstract",
 ]

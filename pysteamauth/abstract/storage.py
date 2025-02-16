@@ -6,7 +6,6 @@ from typing import Mapping
 
 
 class CookieStorageAbstract(ABC):
-
     @abstractmethod
     async def set(self, login: str, cookies: Mapping[str, Mapping[str, str]]) -> None:  # noqa:U100
         ...

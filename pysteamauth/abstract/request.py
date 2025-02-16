@@ -11,7 +11,6 @@ from aiohttp import ClientResponse
 
 
 class RequestStrategyAbstract(ABC):
-
     @abstractmethod
     async def request(self, url: str, method: str, **kwargs: Any) -> ClientResponse:  # noqa:U100
         ...
@@ -25,5 +24,5 @@ class RequestStrategyAbstract(ABC):
         ...
 
     @abstractmethod
-    def cookies(self, domain: str = 'steamcommunity.com') -> Mapping[str, str]:  # noqa:U100
+    def cookies(self, domain: str = "steamcommunity.com") -> Mapping[str, str]:  # noqa:U100
         ...

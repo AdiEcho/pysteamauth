@@ -15,7 +15,6 @@ from pysteamauth.errors import check_steam_error
 
 
 class BaseRequestStrategy(RequestStrategyAbstract):
-
     def __init__(self):
         self._session: Optional[ClientSession] = None
 
@@ -38,17 +37,17 @@ class BaseRequestStrategy(RequestStrategyAbstract):
         if self._session is None:
             self._session = self._create_session()
         response = await self._session.request(method, url, **kwargs)
-        error = response.headers.get('X-eresult')
+        error = response.headers.get("X-eresult")
         if error:
             check_steam_error(int(error))
         return response
 
-    def cookies(self, domain: str = 'steamcommunity.com') -> Mapping[str, str]:
+    def cookies(self, domain: str = "steamcommunity.com") -> Mapping[str, str]:
         if self._session is None:
-            raise RuntimeError('Session is not initialized')
+            raise RuntimeError("Session is not initialized")
         cookies = {}
         for cookie in self._session.cookie_jar:
-            if cookie['domain'] == domain:
+            if cookie["domain"] == domain:
                 cookies[cookie.key] = cookie.value
         return cookies
 
