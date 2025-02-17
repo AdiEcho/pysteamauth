@@ -3,12 +3,12 @@ from setuptools import setup
 
 
 requirements = [
-    "aiohttp==3.10.2",
-    "protobuf==5.28.2",
-    "pydantic==1.9",
-    "rsa==4.7",
-    "bitstring==3.1.2",
-    "urllib3==2.2.2",
+    "aiohttp==3.11.12",
+    "protobuf==5.29.3",
+    "pydantic==2.10.6",
+    "rsa==4.9",
+    "bitstring==4.3.0",
+    "urllib3==2.3.0",
 ]
 
 
