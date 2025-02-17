@@ -107,6 +107,15 @@ class Steam:
     async def sessionid(self, domain: str = "steamcommunity.com") -> str:
         return (await self.cookies(domain))["sessionid"]
 
+    async def get_refresh_token(self):
+        login_steam_cookie = await self.cookies("login.steampowered.com")
+        steam_refresh_steam = login_steam_cookie.get("steamRefresh_steam")
+        if not steam_refresh_steam:
+            return None, None
+        sp = steam_refresh_steam.split("%7C%7C")
+        steam_id, refresh_token = sp[0], sp[1]
+        return steam_id, refresh_token
+
     async def request(self, url: str, method: str = "GET", **kwargs: Any) -> str:
         cookies = await self._storage.get(
             login=self._login,
@@ -317,7 +326,7 @@ class Steam:
             ),
             headers={"Origin": "https://steamcommunity.com"},
         )
-        return FinalizeLoginStatus.model_validate(response)
+        return FinalizeLoginStatus.model_validate_json(response)
 
     async def _set_token(self, url: str, nonce: str, auth: str, steamid: int) -> None:
         await self._requests.request(
@@ -342,8 +351,44 @@ class Steam:
         )
 
     async def login_to_steam(self) -> None:
+        # 如果已经授权（已经登录），直接退出
         if await self.is_authorized():
             return
+        steam_id, refresh_token = await self.get_refresh_token()
+        if steam_id and refresh_token:
+            try:
+                url = "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1"
+                headers = {'Origin': 'https://steamcommunity.com', 'Referer': 'https://steamcommunity.com/'}
+                res = await self._requests.request(
+                    method="POST",
+                    url=url,
+                    data=FormData(
+                        fields=[
+                            ("steamid", steam_id),
+                            ("refresh_token", refresh_token),
+                        ],
+                    ),
+                    headers=headers,
+                )
+                resp_json = await res.json()
+                if 'response' in resp_json and 'access_token' in resp_json['response']:
+                    access_token = resp_json['response']['access_token']
+                    steam_login_secure = (steam_id + '%7C%7C' + access_token)
+                    for domain_name in ['steamcommunity.com', 'store.steampowered.com', 'help.steampowered.com']:
+                        self._requests._session.cookie_jar.update_cookies(
+                            {
+                                "sessionid": self._requests.cookies().get("sessionid"),
+                                "steamLoginSecure": steam_login_secure,
+                            },
+                            response_url=parse_url(f"https://{domain_name}/"),
+                        )
+                    await self._save_cookies()
+                return
+            except Exception as e:
+                print(f"login with refresh token error: {e}")
+                pass
+
+        # 如果没有有效的 refresh_token，执行正常的登录流程
         if not self._requests.cookies().get("sessionid"):
             await self._requests.bytes(
                 method="GET",
@@ -382,14 +427,17 @@ class Steam:
             )
         if not self._steamid and tokens.steamID:
             self._steamid = int(tokens.steamID)
-        cookies = {
-            "steamcommunity.com": self._requests.cookies("steamcommunity.com"),
-        }
+        await self._save_cookies()
+
+    async def _save_cookies(self):
+        cookies = {}
         for url in ("https://store.steampowered.com", "https://help.steampowered.com"):
             await self._requests.bytes(url, "GET")
-            cookies.update(
-                {
-                    parse_url(url).host: self._requests.cookies(parse_url(url).host),
-                }
-            )
+
+        for morsel in self._requests._session.cookie_jar:
+            if morsel["domain"] in cookies:
+                cookies[morsel["domain"]][morsel.key] = morsel.value
+            else:
+                cookies[morsel["domain"]] = {morsel.key: morsel.value}
+
         await self._storage.set(login=self._login, cookies=cookies)
