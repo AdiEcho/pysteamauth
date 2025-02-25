@@ -6,7 +6,7 @@ attrs
 bitstring
 charset-normalizer
 frozenlist
-idna==3.4
+idna
 multidict
 protobuf
 pyasn1
