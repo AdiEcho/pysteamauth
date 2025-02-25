@@ -4,13 +4,13 @@ import hashlib
 import hmac
 import json
 import math
+import time
 from struct import pack
 from typing import (
     Any,
     Mapping,
     Optional,
 )
-
 import rsa
 from aiohttp import FormData
 from bitstring import BitArray
@@ -37,8 +37,30 @@ from pysteamauth.pb2.steammessages_auth.steamclient_pb2 import (
     EAuthSessionGuardType,
     EAuthTokenPlatformType,
 )
-
+from yarl import URL
 from .schemas import FinalizeLoginStatus
+
+
+def base64url_decode(base64_str):
+    size = len(base64_str) % 4
+    if size == 2:
+        base64_str += "=="
+    elif size == 3:
+        base64_str += "="
+    elif size != 0:
+        raise ValueError("Invalid base64 string")
+    return base64.urlsafe_b64decode(base64_str.encode("utf-8"))
+
+
+def parse_jwt(jwt_token):
+    jwt_token_list = jwt_token.split(".")
+    header = base64url_decode(jwt_token_list[0]).decode()
+    payload = base64url_decode(jwt_token_list[1]).decode()
+    return {
+        "header": json.loads(header),
+        "payload": json.loads(payload),
+        "signature": jwt_token_list[-1],
+    }
 
 
 class Steam:
@@ -170,7 +192,7 @@ class Steam:
             encrypted_password=encrypted_password,
             encryption_timestamp=rsa_timestamp,
             remember_login=True,
-            platform_type=EAuthTokenPlatformType.k_EAuthTokenPlatformType_WebBrowser,
+            platform_type=EAuthTokenPlatformType.k_EAuthTokenPlatformType_MobileApp,
             website_id="Community",
             persistence=ESessionPersistence.k_ESessionPersistence_Persistent,
             device_friendly_name="Mozilla/5.0 (X11; Linux x86_64; rv:1.9.5.20) Gecko/2812-12-10 04:56:28 Firefox/3.8",
@@ -357,6 +379,9 @@ class Steam:
         steam_id, refresh_token = await self.get_refresh_token()
         if steam_id and refresh_token:
             try:
+                decoded_token = parse_jwt(refresh_token)
+                if time.time() > decoded_token["exp"]:
+                    raise Exception("Refresh token expired")
                 url = "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1"
                 headers = {'Origin': 'https://steamcommunity.com', 'Referer': 'https://steamcommunity.com/'}
                 res = await self._requests.request(
@@ -377,11 +402,12 @@ class Steam:
                     for domain_name in ['steamcommunity.com', 'store.steampowered.com', 'help.steampowered.com']:
                         self._requests._session.cookie_jar.update_cookies(
                             {
-                                "sessionid": self._requests.cookies().get("sessionid"),
+                                "sessionid": (await self._storage.get(login=self._login, domain=domain_name)).get("sessionid"),
                                 "steamLoginSecure": steam_login_secure,
                             },
-                            response_url=parse_url(f"https://{domain_name}/"),
+                            response_url=URL(f"https://{domain_name}/"),
                         )
+
                     await self._save_cookies()
                 return
             except Exception as e:
@@ -430,7 +456,7 @@ class Steam:
         await self._save_cookies()
 
     async def _save_cookies(self):
-        cookies = {}
+        cookies = self._storage.cookies.get(self._login, {})
         for url in ("https://store.steampowered.com", "https://help.steampowered.com"):
             await self._requests.bytes(url, "GET")
 
