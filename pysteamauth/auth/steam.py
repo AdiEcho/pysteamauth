@@ -380,7 +380,7 @@ class Steam:
         if steam_id and refresh_token:
             try:
                 decoded_token = parse_jwt(refresh_token)
-                if time.time() > decoded_token["exp"]:
+                if time.time() > decoded_token["payload"]["exp"]:
                     raise Exception("Refresh token expired")
                 url = "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1"
                 headers = {'Origin': 'https://steamcommunity.com', 'Referer': 'https://steamcommunity.com/'}
