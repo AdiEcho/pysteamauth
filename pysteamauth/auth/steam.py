@@ -372,7 +372,7 @@ class Steam:
             == EAuthSessionGuardType.k_EAuthSessionGuardType_DeviceCode
         )
 
-    async def login_to_steam(self) -> None:
+    async def login_to_steam(self, code: str) -> None:
         # 如果已经授权（已经登录），直接退出
         if await self.is_authorized():
             return
@@ -439,8 +439,9 @@ class Steam:
         )
         if auth_session.allowed_confirmations:
             if self._is_twofactor_required(auth_session.allowed_confirmations[0]):
-                server_time = await self.get_server_time()
-                code = await Steam.get_steam_guard(self.shared_secret, server_time)
+                if not code:
+                    server_time = await self.get_server_time()
+                    code = await Steam.get_steam_guard(self.shared_secret, server_time)
                 await self._update_auth_session(
                     client_id=auth_session.client_id,
                     steamid=auth_session.steamid,
