@@ -383,7 +383,10 @@ class Steam:
                 if time.time() > decoded_token["payload"]["exp"]:
                     raise Exception("Refresh token expired")
                 url = "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1"
-                headers = {'Origin': 'https://steamcommunity.com', 'Referer': 'https://steamcommunity.com/'}
+                headers = {
+                    "Origin": "https://steamcommunity.com",
+                    "Referer": "https://steamcommunity.com/",
+                }
                 res = await self._requests.request(
                     method="POST",
                     url=url,
@@ -396,13 +399,21 @@ class Steam:
                     headers=headers,
                 )
                 resp_json = await res.json()
-                if 'response' in resp_json and 'access_token' in resp_json['response']:
-                    access_token = resp_json['response']['access_token']
-                    steam_login_secure = (steam_id + '%7C%7C' + access_token)
-                    for domain_name in ['steamcommunity.com', 'store.steampowered.com', 'help.steampowered.com']:
+                if "response" in resp_json and "access_token" in resp_json["response"]:
+                    access_token = resp_json["response"]["access_token"]
+                    steam_login_secure = steam_id + "%7C%7C" + access_token
+                    for domain_name in [
+                        "steamcommunity.com",
+                        "store.steampowered.com",
+                        "help.steampowered.com",
+                    ]:
                         self._requests._session.cookie_jar.update_cookies(
                             {
-                                "sessionid": (await self._storage.get(login=self._login, domain=domain_name)).get("sessionid"),
+                                "sessionid": (
+                                    await self._storage.get(
+                                        login=self._login, domain=domain_name
+                                    )
+                                ).get("sessionid"),
                                 "steamLoginSecure": steam_login_secure,
                             },
                             response_url=URL(f"https://{domain_name}/"),
