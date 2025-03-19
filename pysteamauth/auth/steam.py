@@ -372,7 +372,7 @@ class Steam:
             == EAuthSessionGuardType.k_EAuthSessionGuardType_DeviceCode
         )
 
-    async def login_to_steam(self, code: str) -> None:
+    async def login_to_steam(self, code: str = "") -> None:
         # 如果已经授权（已经登录），直接退出
         if await self.is_authorized():
             return
