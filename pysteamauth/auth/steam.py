@@ -407,7 +407,7 @@ class Steam:
                             },
                             response_url=URL(f"https://{domain_name}/"),
                         )
-
+                    self._steamid = int(steam_id)
                     await self._save_cookies()
                 return
             except Exception as e:
