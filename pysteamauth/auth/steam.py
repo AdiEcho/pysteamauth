@@ -465,7 +465,24 @@ class Steam:
             )
         if not self._steamid and tokens.steamID:
             self._steamid = int(tokens.steamID)
+        await self._acknowledge_new_trade()
         await self._save_cookies()
+
+    async def _acknowledge_new_trade(self) -> str:
+        url = 'https://steamcommunity.com/trade/new/acknowledge'
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': '*/*',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://steamcommunity.com/trade/new',
+        }
+        payload = {
+            'sessionid': self.sessionid(),
+            'message': 1
+        }
+        resp = await self._requests.request(url, "POST", headers=headers, data=payload, timeout=15)
+        resp.raise_for_status()
+        return await resp.text()
 
     async def _save_cookies(self):
         cookies = self._storage.cookies.get(self._login, {})

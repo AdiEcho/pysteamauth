@@ -14,7 +14,7 @@ requirements = [
 
 setup(
     name="pysteamauth2",
-    version="1.1.6",
+    version="1.1.8",
     url="https://github.com/adiecho/pysteamauth",
     license="MIT",
     author="Mike M / AdiEcho",
