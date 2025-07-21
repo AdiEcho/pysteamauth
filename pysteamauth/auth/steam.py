@@ -372,7 +372,7 @@ class Steam:
             == EAuthSessionGuardType.k_EAuthSessionGuardType_DeviceCode
         )
 
-    async def login_to_steam(self, code: str = "") -> None:
+    async def login_to_steam(self, code: str = "", acknowledge=False) -> None:
         # 如果已经授权（已经登录），直接退出
         if await self.is_authorized():
             return
@@ -465,7 +465,8 @@ class Steam:
             )
         if not self._steamid and tokens.steamID:
             self._steamid = int(tokens.steamID)
-        await self._acknowledge_new_trade()
+        if acknowledge:
+            await self._acknowledge_new_trade()
         await self._save_cookies()
 
     async def _acknowledge_new_trade(self) -> str:
