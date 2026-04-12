@@ -160,11 +160,17 @@ class Steam:
         return steam_id, refresh_token
 
     async def request(self, url: str, method: str = "GET", **kwargs: Any) -> str:
+        return await (await self.request_raw(url, method, **kwargs)).text()
+
+    async def request_bytes(self, url: str, method: str = "GET", **kwargs: Any) -> bytes:
+        return await (await self.request_raw(url, method, **kwargs)).read()
+
+    async def request_raw(self, url: str, method: str = "GET", **kwargs: Any):
         cookies = await self._storage.get(
             login=self._login,
             domain=parse_url(url).host,
         )
-        return await self._requests.text(
+        return await self._requests.request(
             url=url,
             method=method,
             cookies={
