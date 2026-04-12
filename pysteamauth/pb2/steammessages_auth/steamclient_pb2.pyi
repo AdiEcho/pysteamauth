@@ -7,19 +7,19 @@ from typing import (
 from pysteamauth.pb2.enums_pb2 import ESessionPersistence
 
 class EAuthTokenPlatformType(IntEnum):
-    k_EAuthTokenPlatformType_Unknown: int = 0
-    k_EAuthTokenPlatformType_SteamClient: int = 1
-    k_EAuthTokenPlatformType_WebBrowser: int = 2
-    k_EAuthTokenPlatformType_MobileApp: int = 3
+    k_EAuthTokenPlatformType_Unknown = 0
+    k_EAuthTokenPlatformType_SteamClient = 1
+    k_EAuthTokenPlatformType_WebBrowser = 2
+    k_EAuthTokenPlatformType_MobileApp = 3
 
 class EAuthSessionGuardType(IntEnum):
-    k_EAuthSessionGuardType_Unknown: int = 0
-    k_EAuthSessionGuardType_None: int = 1
-    k_EAuthSessionGuardType_EmailCode: int = 2
-    k_EAuthSessionGuardType_DeviceCode: int = 3
-    k_EAuthSessionGuardType_DeviceConfirmation: int = 4
-    k_EAuthSessionGuardType_EmailConfirmation: int = 5
-    k_EAuthSessionGuardType_MachineToken: int = 6
+    k_EAuthSessionGuardType_Unknown = 0
+    k_EAuthSessionGuardType_None = 1
+    k_EAuthSessionGuardType_EmailCode = 2
+    k_EAuthSessionGuardType_DeviceCode = 3
+    k_EAuthSessionGuardType_DeviceConfirmation = 4
+    k_EAuthSessionGuardType_EmailConfirmation = 5
+    k_EAuthSessionGuardType_MachineToken = 6
 
 class CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request:
     def __init__(

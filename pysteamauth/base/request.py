@@ -9,18 +9,20 @@ from aiohttp import (
     ClientResponse,
     ClientSession,
 )
+from yarl import URL
+from aiohttp.typedefs import LooseCookies
 
 from pysteamauth.abstract import RequestStrategyAbstract
 from pysteamauth.errors import check_steam_error
 
 
 class BaseRequestStrategy(RequestStrategyAbstract):
-    def __init__(self):
+    def __init__(self) -> None:
         self._session: Optional[ClientSession] = None
 
-    def __del__(self):
-        if self._session:
-            self._session.connector.close()
+    async def close(self) -> None:
+        if self._session and self._session.connector:
+            await self._session.connector.close()
 
     def _create_session(self) -> ClientSession:
         """
@@ -56,3 +58,7 @@ class BaseRequestStrategy(RequestStrategyAbstract):
 
     async def bytes(self, url: str, method: str, **kwargs: Any) -> bytes:
         return await (await self.request(url, method, **kwargs)).read()
+
+    def update_cookies(self, cookies: LooseCookies, response_url: URL = URL()) -> None:
+        if self._session:
+            self._session.cookie_jar.update_cookies(cookies, response_url)

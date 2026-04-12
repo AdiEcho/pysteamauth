@@ -7,7 +7,7 @@ from pysteamauth.abstract import CookieStorageAbstract
 
 
 class BaseCookieStorage(CookieStorageAbstract):
-    def __init__(self):
+    def __init__(self) -> None:
         self.cookies: Dict[str, Mapping[str, Mapping[str, str]]] = {}
 
     async def set(self, login: str, cookies: Mapping[str, Mapping[str, str]]) -> None:

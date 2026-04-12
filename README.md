@@ -1,9 +1,9 @@
-# Asynchronous python library for Steam authorization using protobuf
+# pysteamauth
+
+Asynchronous python library for Steam authorization using protobuf.
 
 [![pypi: package](https://img.shields.io/badge/pypi-1.1.2-blue)](https://pypi.org/project/pysteamauth/)
-[![Python: versions](
-https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)]()
-
+![Python: versions](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 
 ## Install
 
@@ -11,24 +11,24 @@ https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-b
 pip install pysteamauth
 ```
 
-
 ## Usage
 
 ```python
 from pysteamauth.auth import Steam
-
 
 async def main():
     steam = Steam(
         login='login', 
         password='password',
     )
-    
+
     await steam.login_to_steam()
 
     await steam.request('https://steamcommunity.com')
     await steam.request('https://store.steampowered.com')
     await steam.request('https://help.steampowered.com')
+
+    await steam.close()
 ```
 
 ## If account have Steam Guard
@@ -56,7 +56,6 @@ from aioredis import Redis
 from pysteamauth.abstract import CookieStorageAbstract
 from pysteamauth.auth import Steam
 
-
 class RedisStorage(CookieStorageAbstract):
 
     redis = Redis()
@@ -69,7 +68,6 @@ class RedisStorage(CookieStorageAbstract):
         if not cookies:
             return {}
         return json.loads(cookies).get(domain, {})
-
 
 async def main():
     steam = Steam(
@@ -87,7 +85,6 @@ async def main():
 from pysteamauth.auth import Steam
 from pysteamauth.errors import SteamError
 
-
 async def main():
     try:
         await Steam('login', 'password').login_to_steam()
@@ -95,26 +92,22 @@ async def main():
         print(error)
 ```
 
-#### Or
+or
 
 ```python
 from pysteamauth.auth import Steam
 from pysteamauth.errors import SteamError, custom_error_exception
 
-
 class LoginError(SteamError):
     ...
 
-
 class RateLimitExceeded(SteamError):
     ...
-
 
 custom_error_exception({
     5: LoginError,
     84: RateLimitExceeded,
 })
-
 
 async def main():
     try:
@@ -123,15 +116,14 @@ async def main():
         print(error)
 ```
 
-#### Output
-`{'error': 'InvalidPassword', 'code': 5}`
+Output: `{'error': 'InvalidPassword', 'code': 5}`.
 
 ## Proto files
 
-- https://github.com/SteamDatabase/Protobufs/blob/master/steam/enums.proto
-- https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_base.proto
-- https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_auth.steamclient.proto
-- https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_unified_base.steamclient.proto
+- <https://github.com/SteamDatabase/Protobufs/blob/master/steam/enums.proto>
+- <https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_base.proto>
+- <https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_auth.steamclient.proto>
+- <https://github.com/SteamDatabase/Protobufs/blob/master/steam/steammessages_unified_base.steamclient.proto>
 
 ## License
 
