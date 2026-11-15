@@ -454,17 +454,25 @@ class Steam:
                         )
                     self._steamid = int(steam_id)
                     await self._save_cookies()
-                return
+                    return
             except Exception as e:
                 print(f"login with refresh token error: {e}")
                 pass
 
         # 如果没有有效的 refresh_token，执行正常的登录流程
-        if not self._requests.cookies().get("sessionid"):
-            await self.request_bytes(
-                method="GET",
-                url=f"https://{DOMAINS[site].primary}",
-            )
+        domain = DOMAINS[site].primary
+        if not self._requests.cookies(domain).get("sessionid"):
+            sessionid = (await self.cookies(domain)).get("sessionid")
+            if sessionid:
+                # Steam does not set a new sessionid when one is supplied in cookies.
+                self._requests.update_cookies(
+                    {"sessionid": sessionid}, response_url=URL(f"https://{domain}/"),
+                )
+            else:
+                await self.request_bytes(
+                    method="GET",
+                    url=f"https://{domain}",
+                )
         keys = await self._getrsakey()
         encrypted_password = self._encrypt_password(keys)
         auth_session = await self._begin_auth_session(
