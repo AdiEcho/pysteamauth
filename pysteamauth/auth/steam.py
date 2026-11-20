@@ -39,7 +39,30 @@ from pysteamauth.pb2.steammessages_auth.steamclient_pb2 import (
 )
 from yarl import URL
 from .schemas import FinalizeLoginStatus
+from aiohttp import ClientResponse
 
+class DomainConfig:
+    primary: str
+    redir: str
+    refresh: str
+    additional: list[str]
+DOMAINS = {
+    'steam': DomainConfig(),
+    'partner': DomainConfig(),
+}
+DOMAINS['steam'].primary = 'steamcommunity.com'
+DOMAINS['steam'].redir = 'https://steamcommunity.com/login/home/?goto='
+DOMAINS['steam'].refresh = 'steamRefresh_steam'
+DOMAINS['steam'].additional = [
+    'store.steampowered.com',
+    'help.steampowered.com',
+    'checkout.steampowered.com',
+    'steam.tv',
+]
+DOMAINS['partner'].primary = 'partner.steamgames.com'
+DOMAINS['partner'].redir = 'https://partner.steamgames.com/'
+DOMAINS['partner'].refresh = 'steamRefresh_partner'
+DOMAINS['partner'].additional = ['partner.steampowered.com']
 
 def base64url_decode(base64_str):
     size = len(base64_str) % 4
@@ -129,9 +152,9 @@ class Steam:
     async def sessionid(self, domain: str = "steamcommunity.com") -> str:
         return (await self.cookies(domain))["sessionid"]
 
-    async def get_refresh_token(self):
+    async def get_refresh_token(self, site='steam'):
         login_steam_cookie = await self.cookies("login.steampowered.com")
-        steam_refresh_steam = login_steam_cookie.get("steamRefresh_steam")
+        steam_refresh_steam = login_steam_cookie.get(DOMAINS[site].refresh)
         if not steam_refresh_steam:
             return None, None
         sp = steam_refresh_steam.split("%7C%7C")
@@ -139,11 +162,19 @@ class Steam:
         return steam_id, refresh_token
 
     async def request(self, url: str, method: str = "GET", **kwargs: Any) -> str:
+        return await (await self.request_raw(url, method, **kwargs)).text()
+
+    async def request_bytes(self, url: str, method: str = "GET", **kwargs: Any) -> bytes:
+        return await (await self.request_raw(url, method, **kwargs)).read()
+
+    async def request_raw(self, url: str, method: str = "GET", **kwargs: Any) -> ClientResponse:
+        domain = parse_url(url).host
+        assert domain is not None
         cookies = await self._storage.get(
             login=self._login,
-            domain=parse_url(url).host,
+            domain=domain,
         )
-        return await self._requests.text(
+        return await self._requests.request(
             url=url,
             method=method,
             cookies={
@@ -153,7 +184,14 @@ class Steam:
             **kwargs,
         )
 
-    async def is_authorized(self) -> bool:
+    async def is_authorized(self, site='steam') -> bool:
+        if site == 'partner':
+            res = await self._requests.request(
+                method="GET",
+                url="https://partner.steamgames.com/newpartner",
+                allow_redirects=False,
+            )
+            return res.status == 200
         response: str = await self.request(
             url="https://steamcommunity.com/chat/clientjstoken",
         )
@@ -171,7 +209,7 @@ class Steam:
         message = CAuthentication_GetPasswordRSAPublicKey_Request(
             account_name=self._login,
         )
-        response = await self._requests.bytes(
+        response = await self.request_bytes(
             method="GET",
             url="https://api.steampowered.com/IAuthenticationService/GetPasswordRSAPublicKey/v1",
             params={
@@ -197,7 +235,7 @@ class Steam:
             persistence=ESessionPersistence.k_ESessionPersistence_Persistent,
             device_friendly_name="Mozilla/5.0 (X11; Linux x86_64; rv:1.9.5.20) Gecko/2812-12-10 04:56:28 Firefox/3.8",
         )
-        response = await self._requests.bytes(
+        response = await self.request_bytes(
             method="POST",
             url="https://api.steampowered.com/IAuthenticationService/BeginAuthSessionViaCredentials/v1",
             data=FormData(
@@ -214,7 +252,7 @@ class Steam:
         )
 
     async def get_server_time(self) -> int:
-        response = await self._requests.text(
+        response = await self.request(
             method="POST",
             url="https://api.steampowered.com/ITwoFactorService/QueryTime/v0001",
         )
@@ -319,7 +357,7 @@ class Steam:
             client_id=client_id,
             request_id=request_id,
         )
-        response = await self._requests.bytes(
+        response = await self.request_bytes(
             method="POST",
             url="https://api.steampowered.com/IAuthenticationService/PollAuthSessionStatus/v1",
             data=FormData(
@@ -334,19 +372,19 @@ class Steam:
         return CAuthentication_PollAuthSessionStatus_Response.FromString(response)
 
     async def _finalize_login(
-        self, refresh_token: str, sessionid: str
+        self, refresh_token: str, sessionid: str, site='steam'
     ) -> FinalizeLoginStatus:
-        response = await self._requests.text(
+        response = await self.request(
             method="POST",
             url="https://login.steampowered.com/jwt/finalizelogin",
             data=FormData(
                 fields=[
                     ("nonce", refresh_token),
                     ("sessionid", sessionid),
-                    ("redir", "https://steamcommunity.com/login/home/?goto="),
+                    ("redir", DOMAINS[site].redir),
                 ],
             ),
-            headers={"Origin": "https://steamcommunity.com"},
+            headers={"Origin": f"https://{DOMAINS[site].primary}"},
         )
         return FinalizeLoginStatus.model_validate_json(response)
 
@@ -372,11 +410,11 @@ class Steam:
             == EAuthSessionGuardType.k_EAuthSessionGuardType_DeviceCode
         )
 
-    async def login_to_steam(self, code: str = "", acknowledge=False) -> None:
+    async def login_to_steam(self, code: str = "", acknowledge=False, site='steam') -> None:
         # 如果已经授权（已经登录），直接退出
-        if await self.is_authorized():
+        if await self.is_authorized(site):
             return
-        steam_id, refresh_token = await self.get_refresh_token()
+        steam_id, refresh_token = await self.get_refresh_token(site)
         if steam_id and refresh_token:
             try:
                 decoded_token = parse_jwt(refresh_token)
@@ -384,8 +422,8 @@ class Steam:
                     raise Exception("Refresh token expired")
                 url = "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1"
                 headers = {
-                    "Origin": "https://steamcommunity.com",
-                    "Referer": "https://steamcommunity.com/",
+                    "Origin": f'https://{DOMAINS[site].primary}',
+                    "Referer": f'https://{DOMAINS[site].primary}/',
                 }
                 res = await self._requests.request(
                     method="POST",
@@ -402,12 +440,8 @@ class Steam:
                 if "response" in resp_json and "access_token" in resp_json["response"]:
                     access_token = resp_json["response"]["access_token"]
                     steam_login_secure = steam_id + "%7C%7C" + access_token
-                    for domain_name in [
-                        "steamcommunity.com",
-                        "store.steampowered.com",
-                        "help.steampowered.com",
-                    ]:
-                        self._requests._session.cookie_jar.update_cookies(
+                    for domain_name in [DOMAINS[site].primary, *DOMAINS[site].additional]:
+                        self._requests.update_cookies(
                             {
                                 "sessionid": (
                                     await self._storage.get(
@@ -420,17 +454,25 @@ class Steam:
                         )
                     self._steamid = int(steam_id)
                     await self._save_cookies()
-                return
+                    return
             except Exception as e:
                 print(f"login with refresh token error: {e}")
                 pass
 
         # 如果没有有效的 refresh_token，执行正常的登录流程
-        if not self._requests.cookies().get("sessionid"):
-            await self._requests.bytes(
-                method="GET",
-                url="https://steamcommunity.com",
-            )
+        domain = DOMAINS[site].primary
+        if not self._requests.cookies(domain).get("sessionid"):
+            sessionid = (await self.cookies(domain)).get("sessionid")
+            if sessionid:
+                # Steam does not set a new sessionid when one is supplied in cookies.
+                self._requests.update_cookies(
+                    {"sessionid": sessionid}, response_url=URL(f"https://{domain}/"),
+                )
+            else:
+                await self.request_bytes(
+                    method="GET",
+                    url=f"https://{domain}",
+                )
         keys = await self._getrsakey()
         encrypted_password = self._encrypt_password(keys)
         auth_session = await self._begin_auth_session(
@@ -454,7 +496,8 @@ class Steam:
         )
         tokens = await self._finalize_login(
             refresh_token=session.refresh_token,
-            sessionid=self._requests.cookies()["sessionid"],
+            sessionid=self._requests.cookies(DOMAINS[site].primary)["sessionid"],
+            site=site,
         )
         for token in tokens.transfer_info:
             await self._set_token(
@@ -467,7 +510,10 @@ class Steam:
             self._steamid = int(tokens.steamID)
         if acknowledge:
             await self._acknowledge_new_trade()
-        await self._save_cookies()
+        await self._save_cookies(site)
+
+    async def login_to_steamworks(self, code: str = "") -> None:
+        await self.login_to_steam(code=code, site='partner')
 
     async def _acknowledge_new_trade(self) -> str:
         url = 'https://steamcommunity.com/trade/new/acknowledge'
@@ -485,10 +531,10 @@ class Steam:
         resp.raise_for_status()
         return await resp.text()
 
-    async def _save_cookies(self):
+    async def _save_cookies(self, site='steam'):
         cookies = self._storage.cookies.get(self._login, {})
-        for url in ("https://store.steampowered.com", "https://help.steampowered.com"):
-            await self._requests.bytes(url, "GET")
+        for domain in DOMAINS[site].additional:
+            await self._requests.bytes(f"https://{domain}", "GET")
 
         for morsel in self._requests._session.cookie_jar:
             if morsel["domain"] in cookies:
@@ -497,3 +543,6 @@ class Steam:
                 cookies[morsel["domain"]] = {morsel.key: morsel.value}
 
         await self._storage.set(login=self._login, cookies=cookies)
+
+    async def close(self):
+        await self._requests.close()

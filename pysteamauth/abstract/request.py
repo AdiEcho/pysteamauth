@@ -8,21 +8,23 @@ from typing import (
 )
 
 from aiohttp import ClientResponse
+from aiohttp.typedefs import LooseCookies
+from yarl import URL
 
 
 class RequestStrategyAbstract(ABC):
     @abstractmethod
-    async def request(self, url: str, method: str, **kwargs: Any) -> ClientResponse:  # noqa:U100
+    async def request(self, url: str, method: str, **kwargs: Any) -> ClientResponse:
         ...
 
     @abstractmethod
-    async def text(self, url: str, method: str, **kwargs: Any) -> str:  # noqa:U100
+    def cookies(self, domain: str = "steamcommunity.com") -> Mapping[str, str]:
         ...
 
     @abstractmethod
-    async def bytes(self, url: str, method: str, **kwargs: Any) -> bytes:  # noqa:U100
+    async def close(self) -> None:
         ...
 
     @abstractmethod
-    def cookies(self, domain: str = "steamcommunity.com") -> Mapping[str, str]:  # noqa:U100
+    def update_cookies(self, cookies: LooseCookies, response_url: URL = URL()) -> None:
         ...

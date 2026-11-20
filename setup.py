@@ -3,18 +3,18 @@ from setuptools import setup
 
 
 requirements = [
-    "aiohttp==3.11.12",
-    "protobuf==5.29.3",
-    "pydantic==2.10.6",
-    "rsa==4.9",
-    "bitstring==4.3.0",
-    "urllib3==2.3.0",
+    "aiohttp",
+    "protobuf",
+    "pydantic",
+    "rsa",
+    "bitstring",
+    "urllib3",
 ]
 
 
 setup(
     name="pysteamauth2",
-    version="1.1.8",
+    version="1.2.0",
     url="https://github.com/adiecho/pysteamauth",
     license="MIT",
     author="Mike M / AdiEcho",
